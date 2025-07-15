@@ -1,5 +1,5 @@
 plugins {
-    id 'java'
+    id 'application'
 }
 
 group = 'org.lng'
@@ -14,6 +14,24 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter'
 }
 
+application {
+    mainClass = 'org.lng.Main'
+}
+
 test {
     useJUnitPlatform()
+}
+
+jar {
+    archiveBaseName = "solution"
+    archiveVersion = '0.0.1'
+}
+
+tasks.register("runWithDefaults", JavaExec){
+    group = 'application'
+    dependsOn(jar)
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = application.mainClass
+    args = ['src/main/resources/lng-4.txt']
+    jvmArgs = ['-Xmx1G']
 }

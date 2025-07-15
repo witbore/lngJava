@@ -10,7 +10,7 @@ import java.util.Map;
 
 public class Main {
     public static void main(String[] args) {
-        File file = new File("src/main/resources/lng-4.txt");
+        File file = new File(args[0]);
         Map<PositionedValue, List<String>> positionValueToLines = PositionValueIndexer.buildIndex(file);
         Graph<String> graph = new Graph<>();
         for (Map.Entry<PositionedValue, List<String>> entry : positionValueToLines.entrySet()) {
