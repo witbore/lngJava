@@ -23,15 +23,18 @@ test {
 }
 
 jar {
+    manifest {
+        attributes('Main-Class': application.mainClass.get())
+    }
     archiveBaseName = "solution"
     archiveVersion = '0.0.1'
 }
 
-tasks.register("runWithDefaults", JavaExec){
+tasks.register("runWithDefaults", JavaExec) {
     group = 'application'
     dependsOn(jar)
     classpath = sourceSets.main.runtimeClasspath
-    mainClass = application.mainClass
+    mainClass.set(application.mainClass)
     args = ['src/main/resources/lng-4.txt']
     jvmArgs = ['-Xmx1G']
 }
