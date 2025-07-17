@@ -14,8 +14,8 @@ public class PositionValueIndexer {
         return line.length() >= 3 && line.matches("\"\\d+\"");
     }
 
-    public static Map<PositionedValue, List<String>> buildIndex(File file) {
-        Map<PositionedValue, List<String>> columnValueMap = new HashMap<>();
+    public static Map<PositionedValue, List<Integer>> buildIndex(File file) {
+        Map<PositionedValue, List<Integer>> columnValueMap = new HashMap<>();
         try (BufferedReader br = new BufferedReader(new FileReader(file))) {
             for (String line = br.readLine(); line != null; line = br.readLine()) {
                 String[] split = line.split(";");
@@ -25,7 +25,7 @@ public class PositionValueIndexer {
                         continue;
                     }
                     PositionedValue val = new PositionedValue(column, number);
-                    columnValueMap.computeIfAbsent(val, k -> new ArrayList<>()).add(line);
+                    columnValueMap.computeIfAbsent(val, k -> new ArrayList<>()).add(line.hashCode());
                 }
             }
         } catch (IOException e) {
