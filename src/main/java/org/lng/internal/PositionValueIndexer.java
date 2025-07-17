@@ -21,7 +21,7 @@ public class PositionValueIndexer {
                 String[] split = line.split(";");
                 for (int column = 0; column < split.length; column++) {
                     String number = split[column];
-                    if (validateFileLine(number)) {
+                    if (!validateFileLine(number)) {
                         continue;
                     }
                     PositionedValue val = new PositionedValue(column, number);
