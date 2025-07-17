@@ -13,11 +13,15 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class PositionValueIndexer {
-    private static List<String> lines = new ArrayList<>();
+    private static final List<String> lines = new ArrayList<>();
+    private static final List<Integer> correctLineIds = new ArrayList<>();
+    private static final Pattern VALID_LINE_PATTERN = Pattern.compile("^\"\\d*\"(?:;\"\\d*\")*$");
+    private static final Pattern QUOTED_NUMBER_PATTERN = Pattern.compile("\"(\\d*)\"");
 
     public PositionValueIndexer(File file) {
         try (BufferedReader br = new BufferedReader(new FileReader(file))) {
@@ -27,15 +31,14 @@ public class PositionValueIndexer {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        lines = Collections.unmodifiableList(lines);
     }
 
     public static String getLineByIndex(int index) {
         return lines.get(index);
     }
 
-    public static int getNumberOfLines() {
-        return lines.size();
+    public static List<Integer> getCorrectLineIds() {
+        return correctLineIds;
     }
 
     public Int2ObjectMap<Object2ObjectMap<Triple, IntList>> buildIndex() {
@@ -44,6 +47,7 @@ public class PositionValueIndexer {
             String line = lines.get(id);
             ParsedLine parsed = parseLine(line, id);
             if (parsed != null) {
+                correctLineIds.add(id);
                 indexParsedLine(parsed, id, columnToNumbersWithLineIds);
             }
         }
@@ -51,30 +55,25 @@ public class PositionValueIndexer {
     }
 
     private ParsedLine parseLine(String line, int id) {
-        ObjectArrayList<Triple> numbers = new ObjectArrayList<>();
-        IntArrayList columns = new IntArrayList();
-        int start = 0, column = 0;
-
-        while (start < line.length()) {
-            while (start < line.length() && line.charAt(start) != '"') start++;
-            if (start >= line.length()) break;
-
-            int end = start + 1;
-            while (end < line.length() && line.charAt(end) != '"') end++;
-            if (end >= line.length()) break;
-
-            int afterQuote = end + 1;
-            if (afterQuote < line.length() && line.charAt(afterQuote) != ';') {
-                return null;
-            }
-
-            numbers.add(new Triple(id, start, end));
-            columns.add(column);
-            start = end + 1;
-            column++;
+        if (!VALID_LINE_PATTERN.matcher(line).matches()) {
+            return null;
         }
 
-        return new ParsedLine(columns, numbers);
+        ObjectArrayList<Triple> triples = new ObjectArrayList<>();
+        IntArrayList columns = new IntArrayList();
+
+        Matcher matcher = QUOTED_NUMBER_PATTERN.matcher(line);
+        int columnIndex = 0;
+
+        while (matcher.find()) {
+            int left = matcher.start(1);
+            int right = matcher.end(1);
+            columns.add(columnIndex);
+            triples.add(new Triple(id, left, right));
+            columnIndex++;
+        }
+
+        return triples.isEmpty() ? null : new ParsedLine(columns, triples);
     }
 
     private void indexParsedLine(ParsedLine parsed, int lineId, Int2ObjectMap<Object2ObjectMap<Triple, IntList>> index) {
@@ -89,7 +88,6 @@ public class PositionValueIndexer {
 
     private record ParsedLine(IntArrayList columns, ObjectArrayList<Triple> triples) {
     }
-
 
     static public class Triple {
         final int lineId;

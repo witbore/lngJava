@@ -18,16 +18,29 @@ public class Main {
         File file = new File(args[0]);
         PositionValueIndexer indexer = new PositionValueIndexer(file);
         Int2ObjectMap<Object2ObjectMap<Triple, IntList>> positionValueToLines = indexer.buildIndex();
+        IntUnionFindSet set = new IntUnionFindSet();
 
-        IntUnionFindSet set = getIntUnionFindSet(positionValueToLines);
-
-        Map<Integer, List<Integer>> groups = new HashMap<>();
-        for (int i = 0; i < PositionValueIndexer.getNumberOfLines(); i++) {
-            int root = set.findSetRootByElement(i);
-            groups.computeIfAbsent(root, k -> new ArrayList<>()).add(i);
+        for (int id : PositionValueIndexer.getCorrectLineIds()) {
+            set.createSingleElementSet(id);
         }
 
-        List<List<Integer>> sortedGroups = new ArrayList<>(groups.values());
+        for (Object2ObjectMap<Triple, IntList> numToLines : positionValueToLines.values()) {
+            for (List<Integer> group : numToLines.values()) {
+                if (group.size() < 2) continue;
+
+                Integer representative = group.get(0);
+                for (int i = 1; i < group.size(); i++) {
+                    set.unionSetsByElements(representative, group.get(i));
+                }
+            }
+        }
+
+        Map<Integer, List<Integer>> groups = new HashMap<>();
+        for (int id : PositionValueIndexer.getCorrectLineIds()) {
+            int root = set.findSetRootByElement(id);
+            groups.computeIfAbsent(root, k -> new ArrayList<>()).add(id);
+        }
+        List<List<Integer>> sortedGroups = new ArrayList<>();
 
         sortedGroups.sort((a, b) -> Integer.compare(b.size(), a.size()));
 
@@ -41,26 +54,5 @@ public class Main {
         }
 
         System.out.println("Total number of groups: " + groups.size());
-    }
-
-    private static IntUnionFindSet getIntUnionFindSet(Int2ObjectMap<Object2ObjectMap<Triple, IntList>> positionValueToLines) {
-        IntUnionFindSet set = new IntUnionFindSet();
-
-        for (int i = 0; i < PositionValueIndexer.getNumberOfLines(); i++) {
-            set.createSingleElementSet(i);
-        }
-
-        for (Object2ObjectMap<Triple, IntList> numToLines : positionValueToLines.values()) {
-            for (List<Integer> group : numToLines.values()) {
-                if (group.size() < 2) {
-                    continue;
-                }
-                Integer representative = group.get(0);
-                for (int i = 1; i < group.size(); i++) {
-                    set.unionSetsByElements(representative, group.get(i));
-                }
-            }
-        }
-        return set;
     }
 }
