@@ -5,6 +5,7 @@ build/
 !**/src/test/**/build/
 src/main/resources/lng-4.txt
 .idea
+/output.txt
 
 ### IntelliJ IDEA ###
 .idea/modules.xml

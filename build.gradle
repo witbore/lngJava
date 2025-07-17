@@ -20,7 +20,7 @@ application {
 
 shadowJar {
     archiveBaseName.set("solution")
-    archiveVersion.set("0.1.0")
+    archiveVersion.set("")
     archiveClassifier.set("")
 }
 

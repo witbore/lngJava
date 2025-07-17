@@ -8,6 +8,9 @@ import org.lng.internal.PositionValueIndexer;
 import org.lng.internal.PositionValueIndexer.Triple;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -40,19 +43,31 @@ public class Main {
             int root = set.findSetRootByElement(id);
             groups.computeIfAbsent(root, k -> new ArrayList<>()).add(id);
         }
-        List<List<Integer>> sortedGroups = new ArrayList<>();
+        List<List<Integer>> multiElementGroups = new ArrayList<>();
 
-        sortedGroups.sort((a, b) -> Integer.compare(b.size(), a.size()));
-
-        System.out.println(sortedGroups.size());
-        for (int i = 0; i < sortedGroups.size(); i++) {
-            System.out.println("Group#" + (i + 1));
-            for (int lineId : sortedGroups.get(i)) {
-                System.out.println(PositionValueIndexer.getLineByIndex(lineId));
-            }
-            System.out.println();
+        for(List<Integer> group : groups.values()) {
+            if(group.size() < 2) continue;
+            multiElementGroups.add(group);
         }
+        multiElementGroups.sort((a, b) -> Integer.compare(b.size(), a.size()));
 
-        System.out.println("Total number of groups: " + groups.size());
+        writeGroupsToFile("output.txt", multiElementGroups);
+    }
+
+    public static void writeGroupsToFile(String filename, List<List<Integer>> sortedGroups) {
+        try (PrintWriter writer = new PrintWriter(filename, StandardCharsets.UTF_8)) {
+            writer.println("Всего групп с более чем одним элементом: " + sortedGroups.size());
+            writer.println();
+
+            for (int i = 0; i < sortedGroups.size(); i++) {
+                writer.println("Группа " + (i + 1));
+                for (int lineId : sortedGroups.get(i)) {
+                    writer.println(PositionValueIndexer.getLineByIndex(lineId));
+                }
+                writer.println();
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
