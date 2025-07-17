@@ -1,5 +1,6 @@
 plugins {
     id 'application'
+    id 'com.gradleup.shadow' version "8.3.8"
 }
 
 group = 'org.lng'
@@ -10,8 +11,6 @@ repositories {
 }
 
 dependencies {
-    testImplementation platform('org.junit:junit-bom:5.10.0')
-    testImplementation 'org.junit.jupiter:junit-jupiter'
     implementation("it.unimi.dsi:fastutil:8.5.12")
 }
 
@@ -19,21 +18,15 @@ application {
     mainClass = 'org.lng.Main'
 }
 
-test {
-    useJUnitPlatform()
-}
-
-jar {
-    manifest {
-        attributes('Main-Class': application.mainClass.get())
-    }
-    archiveBaseName = "solution"
-    archiveVersion = '0.0.1'
+shadowJar {
+    archiveBaseName.set("solution")
+    archiveVersion.set("0.1.0")
+    archiveClassifier.set("")
 }
 
 tasks.register("runWithDefaults", JavaExec) {
     group = 'application'
-    dependsOn(jar)
+    dependsOn(shadowJar)
     classpath = sourceSets.main.runtimeClasspath
     mainClass.set(application.mainClass)
     args = ['src/main/resources/lng-4.txt']
