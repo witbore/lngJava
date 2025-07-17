@@ -19,7 +19,7 @@ import java.util.regex.Pattern;
 
 public class PositionValueIndexer {
     private static final List<String> lines = new ArrayList<>();
-    private static final List<Integer> correctLineIds = new ArrayList<>();
+    private static final IntList correctLineIds = new IntArrayList();
     private static final Pattern VALID_LINE_PATTERN = Pattern.compile("^\"\\d*\"(?:;\"\\d*\")*$");
     private static final Pattern QUOTED_NUMBER_PATTERN = Pattern.compile("\"(\\d*)\"");
 
@@ -37,7 +37,7 @@ public class PositionValueIndexer {
         return lines.get(index);
     }
 
-    public static List<Integer> getCorrectLineIds() {
+    public static IntList getCorrectLineIds() {
         return correctLineIds;
     }
 
