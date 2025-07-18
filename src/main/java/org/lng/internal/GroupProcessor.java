@@ -5,22 +5,26 @@ import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import org.lng.internal.PositionValueIndexer.Slice;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class GroupProcessor {
+    private final FileReader reader;
+
+    public GroupProcessor(FileReader fileReader) {
+        reader = fileReader;
+    }
+
     /**
      * Processes the input file to find and group lines sharing common values in the same column positions.
      *
-     * @param file input file to process
      * @return list of groups containing line IDs, each group has at least two lines,
      * sorted by group size in descending order
      */
-    public List<List<Integer>> processFile(File file) {
-        PositionValueIndexer indexer = new PositionValueIndexer(file);
+    public List<List<Integer>> processFileLines() {
+        PositionValueIndexer indexer = new PositionValueIndexer(reader);
         Int2ObjectMap<Object2ObjectMap<Slice, IntList>> positionValueToLines = indexer.buildIndex();
 
         IntUnionFindSet unionFindSet = createUnionFindSet(PositionValueIndexer.getCorrectLineIds());
@@ -56,7 +60,9 @@ public class GroupProcessor {
                                IntUnionFindSet set) {
         for (Object2ObjectMap<Slice, IntList> numToLines : positionValueToLines.values()) {
             for (List<Integer> group : numToLines.values()) {
-                if (group.size() < 2) continue;
+                if (group.size() < 2) {
+                    continue;
+                }
                 Integer representative = group.get(0);
                 for (int i = 1; i < group.size(); i++) {
                     set.unionSetsByElements(representative, group.get(i));
@@ -89,7 +95,9 @@ public class GroupProcessor {
     private List<List<Integer>> filterAndSortGroups(Map<Integer, List<Integer>> groups) {
         List<List<Integer>> multiElementGroups = new ArrayList<>();
         for (List<Integer> group : groups.values()) {
-            if (group.size() < 2) continue;
+            if (group.size() < 2) {
+                continue;
+            }
             multiElementGroups.add(group);
         }
         multiElementGroups.sort((a, b) -> Integer.compare(b.size(), a.size()));

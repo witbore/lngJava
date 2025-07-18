@@ -6,6 +6,12 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 public class GroupWriter {
+    private final FileReader reader;
+
+    public GroupWriter(FileReader fileReader) {
+        reader = fileReader;
+    }
+
     public void writeGroupsToFile(String filename, List<List<Integer>> sortedGroups) {
         try (PrintWriter writer = new PrintWriter(filename, StandardCharsets.UTF_8)) {
             writer.println("Всего групп с более чем одним элементом: " + sortedGroups.size());
@@ -14,7 +20,7 @@ public class GroupWriter {
             for (int i = 0; i < sortedGroups.size(); i++) {
                 writer.println("Группа " + (i + 1));
                 for (int lineId : sortedGroups.get(i)) {
-                    writer.println(PositionValueIndexer.getLineByIndex(lineId));
+                    writer.println(reader.getLineById(lineId));
                 }
                 writer.println();
             }

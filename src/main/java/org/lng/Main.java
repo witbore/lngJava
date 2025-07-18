@@ -1,5 +1,6 @@
 package org.lng;
 
+import org.lng.internal.FileReader;
 import org.lng.internal.GroupProcessor;
 import org.lng.internal.GroupWriter;
 
@@ -12,10 +13,11 @@ public class Main {
             throw new IllegalArgumentException("No input file provided");
         }
         File file = new File(args[0]);
-        GroupProcessor processor = new GroupProcessor();
-        GroupWriter writer = new GroupWriter();
+        FileReader fileReader = new FileReader(file);
+        GroupProcessor processor = new GroupProcessor(fileReader);
+        GroupWriter writer = new GroupWriter(fileReader);
 
-        List<List<Integer>> multiElementGroups = processor.processFile(file);
+        List<List<Integer>> multiElementGroups = processor.processFileLines();
         writer.writeGroupsToFile("output.txt", multiElementGroups);
     }
 }

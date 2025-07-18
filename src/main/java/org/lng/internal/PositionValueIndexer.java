@@ -11,34 +11,19 @@ import it.unimi.dsi.fastutil.objects.ObjectList;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 
 public class PositionValueIndexer {
-    private static final ObjectList<String> fileLines = new ObjectArrayList<>();
+
     private static final IntList correctLineIds = new IntArrayList();
     private static final char STRING_DELIMITER = ';';
     private static final char NUMBER_BOUNDARY = '"';
     private static final char NUMBER_DOT = '.';
+    private final FileReader fileReader;
 
-    public PositionValueIndexer(File file) {
-        try (BufferedReader br = new BufferedReader(new FileReader(file))) {
-            for (String line = br.readLine(); line != null; line = br.readLine()) {
-                fileLines.add(line);
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+    public PositionValueIndexer(FileReader reader) {
+        fileReader = reader;
     }
-
-    /**
-     * @param index position of the line in the file.
-     * @return the line at that position.
-     */
-    public static String getLineByIndex(int index) {
-        return fileLines.get(index);
-    }
-
 
     /**
      * Because some string can contain the invalid data, the correct line IDs are stored to this array.
@@ -58,8 +43,8 @@ public class PositionValueIndexer {
      */
     public Int2ObjectMap<Object2ObjectMap<Slice, IntList>> buildIndex() {
         Int2ObjectMap<Object2ObjectMap<Slice, IntList>> columnToNumbersWithLineIds = new Int2ObjectOpenHashMap<>();
-        for (int id = 0; id < fileLines.size(); id++) {
-            String line = fileLines.get(id);
+        for (int id = 0; id < fileReader.getNumberOfLines(); id++) {
+            String line = fileReader.getLineById(id);
             ParsedLine parsed = parseLine(line, id);
             if (parsed != null) {
                 correctLineIds.add(id);
@@ -176,7 +161,7 @@ public class PositionValueIndexer {
      * Represents a substring (number) within a specific line by storing
      * the line ID and the start and end character offsets of the number.
      */
-    static public class Slice {
+    public class Slice {
         final int lineId;
         final int numberStart;
         final int numberEnd;
@@ -200,7 +185,7 @@ public class PositionValueIndexer {
                 return false;
             }
             for (int i = 0; i < len; i++) {
-                if (fileLines.get(lineId).charAt(numberStart + i) != fileLines.get(other.lineId)
+                if (fileReader.getLineById(lineId).charAt(numberStart + i) != fileReader.getLineById(other.lineId)
                         .charAt(other.numberStart + i)) {
                     return false;
                 }
@@ -212,7 +197,7 @@ public class PositionValueIndexer {
         public int hashCode() {
             int result = 1;
             for (int i = numberStart; i < numberEnd; i++) {
-                result = 31 * result + fileLines.get(lineId).charAt(i);
+                result = 31 * result + fileReader.getLineById(lineId).charAt(i);
             }
             return result;
         }
