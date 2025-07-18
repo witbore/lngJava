@@ -7,11 +7,6 @@ import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import it.unimi.dsi.fastutil.objects.ObjectList;
-
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
 
 public class PositionValueIndexer {
 
@@ -44,11 +39,10 @@ public class PositionValueIndexer {
     public Int2ObjectMap<Object2ObjectMap<Slice, IntList>> buildIndex() {
         Int2ObjectMap<Object2ObjectMap<Slice, IntList>> columnToNumbersWithLineIds = new Int2ObjectOpenHashMap<>();
         for (int id = 0; id < fileReader.getNumberOfLines(); id++) {
-            String line = fileReader.getLineById(id);
-            ParsedLine parsed = parseLine(line, id);
-            if (parsed != null) {
+            IntList parsed = parseLine(id);
+            if (!parsed.isEmpty()) {
                 correctLineIds.add(id);
-                indexParsedLine(parsed, id, columnToNumbersWithLineIds);
+                indexParsedLine(id, parsed, columnToNumbersWithLineIds);
             }
         }
         return columnToNumbersWithLineIds;
@@ -66,9 +60,9 @@ public class PositionValueIndexer {
      *
      * @return columns with parsed numbers in `Triple` format or `null` if the line is incorrect.
      */
-    private ParsedLine parseLine(String line, int id) {
-        ObjectArrayList<Slice> slices = new ObjectArrayList<>();
-        IntArrayList columns = new IntArrayList();
+    private IntList parseLine(int lineId) {
+        String line = fileReader.getLineById(lineId);
+        IntArrayList columnsWithSlices = new IntArrayList();
 
         int len = line.length();
         int pos = 0;
@@ -104,10 +98,11 @@ public class PositionValueIndexer {
                     }
 
                     if (isValidNumberContent) {
-                        columns.add(column);
-                        slices.add(new Slice(id, numberContentStart, numberContentEnd));
+                        columnsWithSlices.add(column);
+                        columnsWithSlices.add(numberContentStart);
+                        columnsWithSlices.add(numberContentEnd);
                     } else {
-                        return null;
+                        return new IntArrayList();
                     }
                 }
             } else if (substringStart != substringEnd) {
@@ -120,10 +115,11 @@ public class PositionValueIndexer {
                 }
 
                 if (isValidUnquotedNumber) {
-                    columns.add(column);
-                    slices.add(new Slice(id, substringStart, substringEnd));
+                    columnsWithSlices.add(column);
+                    columnsWithSlices.add(substringStart);
+                    columnsWithSlices.add(substringEnd);
                 } else {
-                    return null;
+                    return new IntArrayList();
                 }
             }
 
@@ -131,7 +127,7 @@ public class PositionValueIndexer {
             pos = substringEnd + 1;
         }
 
-        return slices.isEmpty() ? null : new ParsedLine(columns, slices);
+        return columnsWithSlices;
     }
 
 
@@ -142,20 +138,17 @@ public class PositionValueIndexer {
      * @param lineId the ID of the line being indexed
      * @param index  the index structure mapping columns to numbers and their line IDs
      */
-    private void indexParsedLine(ParsedLine parsed,
-                                 int lineId,
-                                 Int2ObjectMap<Object2ObjectMap<Slice, IntList>> index) {
-        for (int i = 0; i < parsed.columns.size(); i++) {
-            int col = parsed.columns.getInt(i);
-            Slice slice = parsed.slices.get(i);
-            Object2ObjectMap<Slice, IntList> valToLines = index.computeIfAbsent(col,
-                                                                                 k -> new Object2ObjectOpenHashMap<>());
-            IntList lineList = valToLines.computeIfAbsent(slice, k -> new IntArrayList());
+    private void indexParsedLine(int lineId, IntList parsed, Int2ObjectMap<Object2ObjectMap<Slice, IntList>> index) {
+        for (int i = 0; i < parsed.size() - 2; i++) {
+            int column = parsed.getInt(i);
+            int start = parsed.getInt(i + 1);
+            int end = parsed.getInt(i + 2);
+            Object2ObjectMap<Slice, IntList> valToLines = index.computeIfAbsent(column,
+                                                                                k -> new Object2ObjectOpenHashMap<>());
+            IntList lineList = valToLines.computeIfAbsent(new Slice(lineId, start, end), k -> new IntArrayList());
             lineList.add(lineId);
         }
     }
-
-    private record ParsedLine(IntArrayList columns, ObjectArrayList<Slice> slices) {}
 
     /**
      * Represents a substring (number) within a specific line by storing
