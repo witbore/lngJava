@@ -13,14 +13,13 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class PositionValueIndexer {
     private static final ObjectList<String> fileLines = new ObjectArrayList<>();
     private static final IntList correctLineIds = new IntArrayList();
-    private static final Pattern VALID_LINE_PATTERN = Pattern.compile("^\"\\d*\"(?:;\"\\d*\")*$");
-    private static final Pattern QUOTED_NUMBER_PATTERN = Pattern.compile("\"(\\d*)\"");
+    private static final char STRING_DELIMITER = ';';
+    private static final char NUMBER_BOUNDARY = '"';
+    private static final char NUMBER_DOT = '.';
 
     public PositionValueIndexer(File file) {
         try (BufferedReader br = new BufferedReader(new FileReader(file))) {
@@ -75,36 +74,81 @@ public class PositionValueIndexer {
      * Correct lines:
      * `"AAA";"AAA"`
      * `"";"AAA"
+     * `"AAA.A";"AAA.A"
      * Incorrect ones:
      * `"AAA"AAA"
-     * `"AAA";"AAA";
      * `AAA`
      *
      * @return columns with parsed numbers in `Triple` format or `null` if the line is incorrect.
      */
     private ParsedLine parseLine(String line, int id) {
-        if (!VALID_LINE_PATTERN.matcher(line).matches()) {
-            return null;
-        }
-
         ObjectArrayList<Triple> triples = new ObjectArrayList<>();
         IntArrayList columns = new IntArrayList();
 
-        Matcher matcher = QUOTED_NUMBER_PATTERN.matcher(line);
-        int columnIndex = 0;
+        int len = line.length();
+        int pos = 0;
+        int column = 0;
 
-        while (matcher.find()) {
-            if (!matcher.group(1).isEmpty()) {
-                int left = matcher.start(1);
-                int right = matcher.end(1);
-                columns.add(columnIndex);
-                triples.add(new Triple(id, left, right));
+        while (pos < len) {
+            int substringEnd = line.indexOf(STRING_DELIMITER, pos);
+            if (substringEnd == -1) {
+                substringEnd = len;
             }
-            columnIndex++;
+            int substringStart = pos;
+            if (substringStart < substringEnd && line.charAt(substringStart) == NUMBER_BOUNDARY
+                    && line.charAt(substringEnd - 1) == NUMBER_BOUNDARY) {
+
+                int numberContentStart = substringStart + 1;
+                int numberContentEnd = substringEnd - 1;
+
+                if (numberContentStart != numberContentEnd) {
+                    boolean hasDot = false;
+                    boolean isValidNumberContent = true;
+                    for (int k = numberContentStart; k < numberContentEnd; k++) {
+                        char c = line.charAt(k);
+                        if (c == NUMBER_DOT) {
+                            if (hasDot) {
+                                isValidNumberContent = false;
+                                break;
+                            }
+                            hasDot = true;
+                        } else if (!Character.isDigit(c)) {
+                            isValidNumberContent = false;
+                            break;
+                        }
+                    }
+
+                    if (isValidNumberContent) {
+                        columns.add(column);
+                        triples.add(new Triple(id, numberContentStart, numberContentEnd));
+                    } else {
+                        return null;
+                    }
+                }
+            } else if (substringStart != substringEnd) {
+                boolean isValidUnquotedNumber = true;
+                for (int k = substringStart; k < substringEnd; k++) {
+                    if (!Character.isDigit(line.charAt(k))) {
+                        isValidUnquotedNumber = false;
+                        break;
+                    }
+                }
+
+                if (isValidUnquotedNumber) {
+                    columns.add(column);
+                    triples.add(new Triple(id, substringStart, substringEnd));
+                } else {
+                    return null;
+                }
+            }
+
+            column++;
+            pos = substringEnd + 1;
         }
 
         return triples.isEmpty() ? null : new ParsedLine(columns, triples);
     }
+
 
     /**
      * Updates the index by associating each parsed number in a given line with its corresponding column and line IDs.
@@ -113,20 +157,20 @@ public class PositionValueIndexer {
      * @param lineId the ID of the line being indexed
      * @param index  the index structure mapping columns to numbers and their line IDs
      */
-    private void indexParsedLine(ParsedLine parsed, int lineId,
+    private void indexParsedLine(ParsedLine parsed,
+                                 int lineId,
                                  Int2ObjectMap<Object2ObjectMap<Triple, IntList>> index) {
         for (int i = 0; i < parsed.columns.size(); i++) {
             int col = parsed.columns.getInt(i);
             Triple triple = parsed.triples.get(i);
             Object2ObjectMap<Triple, IntList> valToLines = index.computeIfAbsent(col,
-                    k -> new Object2ObjectOpenHashMap<>());
+                                                                                 k -> new Object2ObjectOpenHashMap<>());
             IntList lineList = valToLines.computeIfAbsent(triple, k -> new IntArrayList());
             lineList.add(lineId);
         }
     }
 
-    private record ParsedLine(IntArrayList columns, ObjectArrayList<Triple> triples) {
-    }
+    private record ParsedLine(IntArrayList columns, ObjectArrayList<Triple> triples) {}
 
     /**
      * Represents a substring (number) within a specific line by storing
@@ -145,10 +189,16 @@ public class PositionValueIndexer {
 
         @Override
         public boolean equals(Object o) {
-            if (this == o) return true;
-            if (!(o instanceof Triple other)) return false;
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof Triple other)) {
+                return false;
+            }
             int len = numberEnd - numberStart;
-            if (len != other.numberEnd - other.numberStart) return false;
+            if (len != other.numberEnd - other.numberStart) {
+                return false;
+            }
             for (int i = 0; i < len; i++) {
                 if (fileLines.get(lineId).charAt(numberStart + i) != fileLines.get(other.lineId)
                         .charAt(other.numberStart + i)) {
