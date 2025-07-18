@@ -7,7 +7,7 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 
 public class PositionValueIndexer {
 
-    private static final IntList correctLineIds = new IntArrayList();
+    private final IntList incorrectIds = new IntArrayList();
     private static final char STRING_DELIMITER = ';';
     private static final char NUMBER_BOUNDARY = '"';
     private static final char NUMBER_DOT = '.';
@@ -22,8 +22,8 @@ public class PositionValueIndexer {
      *
      * @return line id with correct number representation.
      */
-    public static IntList getCorrectLineIds() {
-        return correctLineIds;
+    public IntList getIncorrectIds() {
+        return incorrectIds;
     }
 
     /**
@@ -38,8 +38,9 @@ public class PositionValueIndexer {
         for (int id = 0; id < fileReader.getNumberOfLines(); id++) {
             IntList parsed = parseLine(id);
             if (!parsed.isEmpty()) {
-                correctLineIds.add(id);
                 indexParsedLine(id, parsed, columnToNumbersWithLineIds);
+            } else {
+                incorrectIds.add(id);
             }
         }
         return columnToNumbersWithLineIds;

@@ -1,6 +1,6 @@
 package org.lng.internal;
 
-import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import org.lng.internal.PositionValueIndexer.Slice;
@@ -12,9 +12,11 @@ import java.util.Map;
 
 public class GroupProcessor {
     private final FileReader reader;
+    private IntList incorrectIds;
 
     public GroupProcessor(FileReader fileReader) {
         reader = fileReader;
+        incorrectIds = new IntArrayList();
     }
 
     /**
@@ -25,10 +27,9 @@ public class GroupProcessor {
      */
     public List<List<Integer>> processFileLines() {
         PositionValueIndexer indexer = new PositionValueIndexer(reader);
-        Int2ObjectMap<Object2ObjectMap<Slice, IntList>> positionValueToLines = indexer.buildIndex();
-
-        IntUnionFindSet unionFindSet = createUnionFindSet(PositionValueIndexer.getCorrectLineIds());
         Object2ObjectMap<Slice, IntList> positionValueToLines = indexer.buildIndex();
+        incorrectIds = indexer.getIncorrectIds();
+        IntUnionFindSet unionFindSet = createUnionFindSet(reader.getNumberOfLines());
 
         unionElements(positionValueToLines, unionFindSet);
 
@@ -40,12 +41,15 @@ public class GroupProcessor {
     /**
      * Creates and initialises a Union-Find set structure with each line ID as a separate singleton set.
      *
-     * @param lineIds list of valid line IDs
+     * @param size number of lines in the file
      * @return initialized Union-Find set
      */
-    private IntUnionFindSet createUnionFindSet(IntList lineIds) {
+    private IntUnionFindSet createUnionFindSet(int size) {
         IntUnionFindSet set = new IntUnionFindSet();
-        for (int id : lineIds) {
+        for (int id = 0; id < size; id++) {
+            if (incorrectIds.contains(id)) {
+                continue;
+            }
             set.createSingleElementSet(id);
         }
         return set;
@@ -57,18 +61,6 @@ public class GroupProcessor {
      * @param positionValueToLines index mapping columns and numbers to line ID groups
      * @param set                  Union-Find set to perform unions on
      */
-    private void unionElements(Int2ObjectMap<Object2ObjectMap<Slice, IntList>> positionValueToLines,
-                               IntUnionFindSet set) {
-        for (Object2ObjectMap<Slice, IntList> numToLines : positionValueToLines.values()) {
-            for (List<Integer> group : numToLines.values()) {
-                if (group.size() < 2) {
-                    continue;
-                }
-                Integer representative = group.get(0);
-                for (int i = 1; i < group.size(); i++) {
-                    set.unionSetsByElements(representative, group.get(i));
-                }
-            }
     private void unionElements(Object2ObjectMap<Slice, IntList> positionValueToLines, IntUnionFindSet set) {
         for (IntList group : positionValueToLines.values()) {
             if (group.size() < 2) {
@@ -90,7 +82,10 @@ public class GroupProcessor {
      */
     private Map<Integer, List<Integer>> buildGroups(IntUnionFindSet set) {
         Map<Integer, List<Integer>> groups = new HashMap<>();
-        for (int id : PositionValueIndexer.getCorrectLineIds()) {
+        for (int id = 0; id < reader.getNumberOfLines(); id++) {
+            if (incorrectIds.contains(id)) {
+                continue;
+            }
             int root = set.findSetRootByElement(id);
             groups.computeIfAbsent(root, k -> new ArrayList<>()).add(id);
         }
