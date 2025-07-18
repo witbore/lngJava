@@ -56,8 +56,8 @@ public class PositionValueIndexer {
      *
      * @return index `{Column : {<LineId, NumStart, NumEnd> : [LineIds]}`}
      */
-    public Int2ObjectMap<Object2ObjectMap<Triple, IntList>> buildIndex() {
-        Int2ObjectMap<Object2ObjectMap<Triple, IntList>> columnToNumbersWithLineIds = new Int2ObjectOpenHashMap<>();
+    public Int2ObjectMap<Object2ObjectMap<Slice, IntList>> buildIndex() {
+        Int2ObjectMap<Object2ObjectMap<Slice, IntList>> columnToNumbersWithLineIds = new Int2ObjectOpenHashMap<>();
         for (int id = 0; id < fileLines.size(); id++) {
             String line = fileLines.get(id);
             ParsedLine parsed = parseLine(line, id);
@@ -82,7 +82,7 @@ public class PositionValueIndexer {
      * @return columns with parsed numbers in `Triple` format or `null` if the line is incorrect.
      */
     private ParsedLine parseLine(String line, int id) {
-        ObjectArrayList<Triple> triples = new ObjectArrayList<>();
+        ObjectArrayList<Slice> slices = new ObjectArrayList<>();
         IntArrayList columns = new IntArrayList();
 
         int len = line.length();
@@ -120,7 +120,7 @@ public class PositionValueIndexer {
 
                     if (isValidNumberContent) {
                         columns.add(column);
-                        triples.add(new Triple(id, numberContentStart, numberContentEnd));
+                        slices.add(new Slice(id, numberContentStart, numberContentEnd));
                     } else {
                         return null;
                     }
@@ -136,7 +136,7 @@ public class PositionValueIndexer {
 
                 if (isValidUnquotedNumber) {
                     columns.add(column);
-                    triples.add(new Triple(id, substringStart, substringEnd));
+                    slices.add(new Slice(id, substringStart, substringEnd));
                 } else {
                     return null;
                 }
@@ -146,7 +146,7 @@ public class PositionValueIndexer {
             pos = substringEnd + 1;
         }
 
-        return triples.isEmpty() ? null : new ParsedLine(columns, triples);
+        return slices.isEmpty() ? null : new ParsedLine(columns, slices);
     }
 
 
@@ -159,29 +159,29 @@ public class PositionValueIndexer {
      */
     private void indexParsedLine(ParsedLine parsed,
                                  int lineId,
-                                 Int2ObjectMap<Object2ObjectMap<Triple, IntList>> index) {
+                                 Int2ObjectMap<Object2ObjectMap<Slice, IntList>> index) {
         for (int i = 0; i < parsed.columns.size(); i++) {
             int col = parsed.columns.getInt(i);
-            Triple triple = parsed.triples.get(i);
-            Object2ObjectMap<Triple, IntList> valToLines = index.computeIfAbsent(col,
+            Slice slice = parsed.slices.get(i);
+            Object2ObjectMap<Slice, IntList> valToLines = index.computeIfAbsent(col,
                                                                                  k -> new Object2ObjectOpenHashMap<>());
-            IntList lineList = valToLines.computeIfAbsent(triple, k -> new IntArrayList());
+            IntList lineList = valToLines.computeIfAbsent(slice, k -> new IntArrayList());
             lineList.add(lineId);
         }
     }
 
-    private record ParsedLine(IntArrayList columns, ObjectArrayList<Triple> triples) {}
+    private record ParsedLine(IntArrayList columns, ObjectArrayList<Slice> slices) {}
 
     /**
      * Represents a substring (number) within a specific line by storing
      * the line ID and the start and end character offsets of the number.
      */
-    static public class Triple {
+    static public class Slice {
         final int lineId;
         final int numberStart;
         final int numberEnd;
 
-        public Triple(int lineId, int numberStart, int numberEnd) {
+        public Slice(int lineId, int numberStart, int numberEnd) {
             this.lineId = lineId;
             this.numberStart = numberStart;
             this.numberEnd = numberEnd;
@@ -192,7 +192,7 @@ public class PositionValueIndexer {
             if (this == o) {
                 return true;
             }
-            if (!(o instanceof Triple other)) {
+            if (!(o instanceof Slice other)) {
                 return false;
             }
             int len = numberEnd - numberStart;

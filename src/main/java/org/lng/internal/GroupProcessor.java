@@ -3,7 +3,7 @@ package org.lng.internal;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
-import org.lng.internal.PositionValueIndexer.Triple;
+import org.lng.internal.PositionValueIndexer.Slice;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -21,7 +21,7 @@ public class GroupProcessor {
      */
     public List<List<Integer>> processFile(File file) {
         PositionValueIndexer indexer = new PositionValueIndexer(file);
-        Int2ObjectMap<Object2ObjectMap<Triple, IntList>> positionValueToLines = indexer.buildIndex();
+        Int2ObjectMap<Object2ObjectMap<Slice, IntList>> positionValueToLines = indexer.buildIndex();
 
         IntUnionFindSet unionFindSet = createUnionFindSet(PositionValueIndexer.getCorrectLineIds());
 
@@ -52,9 +52,9 @@ public class GroupProcessor {
      * @param positionValueToLines index mapping columns and numbers to line ID groups
      * @param set                  Union-Find set to perform unions on
      */
-    private void unionElements(Int2ObjectMap<Object2ObjectMap<Triple, IntList>> positionValueToLines,
+    private void unionElements(Int2ObjectMap<Object2ObjectMap<Slice, IntList>> positionValueToLines,
                                IntUnionFindSet set) {
-        for (Object2ObjectMap<Triple, IntList> numToLines : positionValueToLines.values()) {
+        for (Object2ObjectMap<Slice, IntList> numToLines : positionValueToLines.values()) {
             for (List<Integer> group : numToLines.values()) {
                 if (group.size() < 2) continue;
                 Integer representative = group.get(0);
