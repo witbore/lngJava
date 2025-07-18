@@ -1,6 +1,6 @@
 # README
 ## Ответ
-471
+1910
 
 ## Запуск решения
 1. `./gradlew shadowJar`
