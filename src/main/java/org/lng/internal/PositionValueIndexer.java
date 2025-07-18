@@ -1,12 +1,9 @@
 package org.lng.internal;
 
-import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
-import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 public class PositionValueIndexer {
 
@@ -36,8 +33,8 @@ public class PositionValueIndexer {
      *
      * @return index `{Column : {<LineId, NumStart, NumEnd> : [LineIds]}`}
      */
-    public Int2ObjectMap<Object2ObjectMap<Slice, IntList>> buildIndex() {
-        Int2ObjectMap<Object2ObjectMap<Slice, IntList>> columnToNumbersWithLineIds = new Int2ObjectOpenHashMap<>();
+    public Object2ObjectMap<Slice, IntList> buildIndex() {
+        Object2ObjectMap<Slice, IntList> columnToNumbersWithLineIds = new Object2ObjectOpenHashMap<>();
         for (int id = 0; id < fileReader.getNumberOfLines(); id++) {
             IntList parsed = parseLine(id);
             if (!parsed.isEmpty()) {
@@ -138,14 +135,12 @@ public class PositionValueIndexer {
      * @param lineId the ID of the line being indexed
      * @param index  the index structure mapping columns to numbers and their line IDs
      */
-    private void indexParsedLine(int lineId, IntList parsed, Int2ObjectMap<Object2ObjectMap<Slice, IntList>> index) {
+    private void indexParsedLine(int lineId, IntList parsed, Object2ObjectMap<Slice, IntList> index) {
         for (int i = 0; i < parsed.size() - 2; i++) {
             int column = parsed.getInt(i);
             int start = parsed.getInt(i + 1);
             int end = parsed.getInt(i + 2);
-            Object2ObjectMap<Slice, IntList> valToLines = index.computeIfAbsent(column,
-                                                                                k -> new Object2ObjectOpenHashMap<>());
-            IntList lineList = valToLines.computeIfAbsent(new Slice(lineId, start, end), k -> new IntArrayList());
+            IntList lineList = index.computeIfAbsent(new Slice(column, lineId, start, end), k -> new IntArrayList());
             lineList.add(lineId);
         }
     }
@@ -155,11 +150,13 @@ public class PositionValueIndexer {
      * the line ID and the start and end character offsets of the number.
      */
     public class Slice {
+        final int columnId;
         final int lineId;
         final int numberStart;
         final int numberEnd;
 
-        public Slice(int lineId, int numberStart, int numberEnd) {
+        public Slice(int columnId, int lineId, int numberStart, int numberEnd) {
+            this.columnId = columnId;
             this.lineId = lineId;
             this.numberStart = numberStart;
             this.numberEnd = numberEnd;
@@ -171,6 +168,9 @@ public class PositionValueIndexer {
                 return true;
             }
             if (!(o instanceof Slice other)) {
+                return false;
+            }
+            if (columnId != other.columnId) {
                 return false;
             }
             int len = numberEnd - numberStart;
@@ -188,11 +188,18 @@ public class PositionValueIndexer {
 
         @Override
         public int hashCode() {
-            int result = 1;
+            String line = fileReader.getLineById(lineId);
+            int hash = 0x811c9dc5;
+            hash ^= columnId;
+            hash *= 0x01000193;
+            hash ^= numberStart;
+            hash *= 0x01000193;
+
             for (int i = numberStart; i < numberEnd; i++) {
-                result = 31 * result + fileReader.getLineById(lineId).charAt(i);
+                hash ^= line.charAt(i);
+                hash *= 0x01000193;
             }
-            return result;
+            return hash;
         }
     }
 

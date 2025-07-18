@@ -28,6 +28,7 @@ public class GroupProcessor {
         Int2ObjectMap<Object2ObjectMap<Slice, IntList>> positionValueToLines = indexer.buildIndex();
 
         IntUnionFindSet unionFindSet = createUnionFindSet(PositionValueIndexer.getCorrectLineIds());
+        Object2ObjectMap<Slice, IntList> positionValueToLines = indexer.buildIndex();
 
         unionElements(positionValueToLines, unionFindSet);
 
@@ -68,6 +69,16 @@ public class GroupProcessor {
                     set.unionSetsByElements(representative, group.get(i));
                 }
             }
+    private void unionElements(Object2ObjectMap<Slice, IntList> positionValueToLines, IntUnionFindSet set) {
+        for (IntList group : positionValueToLines.values()) {
+            if (group.size() < 2) {
+                continue;
+            }
+            int representative = group.getInt(0);
+            for (int i = 1; i < group.size(); i++) {
+                set.unionSetsByElements(representative, group.getInt(i));
+            }
+
         }
     }
 
