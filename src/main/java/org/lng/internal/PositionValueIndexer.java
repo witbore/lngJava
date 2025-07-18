@@ -94,10 +94,12 @@ public class PositionValueIndexer {
         int columnIndex = 0;
 
         while (matcher.find()) {
-            int left = matcher.start(1);
-            int right = matcher.end(1);
-            columns.add(columnIndex);
-            triples.add(new Triple(id, left, right));
+            if (!matcher.group(1).isEmpty()) {
+                int left = matcher.start(1);
+                int right = matcher.end(1);
+                columns.add(columnIndex);
+                triples.add(new Triple(id, left, right));
+            }
             columnIndex++;
         }
 
