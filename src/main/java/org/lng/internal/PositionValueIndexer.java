@@ -2,16 +2,19 @@ package org.lng.internal;
 
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
+import it.unimi.dsi.fastutil.objects.Object2IntMap;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 
 public class PositionValueIndexer {
 
-    private final IntList incorrectIds = new IntArrayList();
-    private static final char STRING_DELIMITER = ';';
     private static final char NUMBER_BOUNDARY = '"';
     private static final char NUMBER_DOT = '.';
+    private final IntList incorrectIds = new IntArrayList();
     private final FileReader fileReader;
+    private final Object2IntMap<String> lineIdsCache = new Object2IntOpenHashMap<>();
+    private int lastLineId = 0;
 
     public PositionValueIndexer(FileReader reader) {
         fileReader = reader;
@@ -38,7 +41,13 @@ public class PositionValueIndexer {
         for (int id = 0; id < fileReader.getNumberOfLines(); id++) {
             IntList parsed = parseLine(id);
             if (!parsed.isEmpty()) {
-                indexParsedLine(id, parsed, columnToNumbersWithLineIds);
+                for (int column : parsed) {
+                    lineIdsCache.computeIfAbsent(fileReader.getLineById(id)[column], v -> lastLineId++);
+                    indexParsedLine(id,
+                                    column,
+                                    lineIdsCache.getInt(fileReader.getLineById(id)[column]),
+                                    columnToNumbersWithLineIds);
+                }
             } else {
                 incorrectIds.add(id);
             }
@@ -59,91 +68,77 @@ public class PositionValueIndexer {
      * @return columns with parsed numbers in `Triple` format or `null` if the line is incorrect.
      */
     private IntList parseLine(int lineId) {
-        String line = fileReader.getLineById(lineId);
-        IntArrayList columnsWithSlices = new IntArrayList();
+        String[] substrings = fileReader.getLineById(lineId);
+        IntArrayList columnsToReturn = new IntArrayList();
 
-        int len = line.length();
-        int pos = 0;
-        int column = 0;
+        for (int column = 0; column < substrings.length; column++) {
+            String content = substrings[column];
+            int len = content.length();
 
-        while (pos < len) {
-            int substringEnd = line.indexOf(STRING_DELIMITER, pos);
-            if (substringEnd == -1) {
-                substringEnd = len;
+            if (len == 0) {
+                continue;
             }
-            int substringStart = pos;
-            if (substringStart < substringEnd && line.charAt(substringStart) == NUMBER_BOUNDARY
-                    && line.charAt(substringEnd - 1) == NUMBER_BOUNDARY) {
 
-                int numberContentStart = substringStart + 1;
-                int numberContentEnd = substringEnd - 1;
+            if (len >= 2 && content.charAt(0) == NUMBER_BOUNDARY && content.charAt(len - 1) == NUMBER_BOUNDARY) {
 
-                if (numberContentStart != numberContentEnd) {
-                    boolean hasDot = false;
-                    boolean isValidNumberContent = true;
-                    for (int k = numberContentStart; k < numberContentEnd; k++) {
-                        char c = line.charAt(k);
-                        if (c == NUMBER_DOT) {
-                            if (hasDot) {
-                                isValidNumberContent = false;
-                                break;
-                            }
-                            hasDot = true;
-                        } else if (!Character.isDigit(c)) {
-                            isValidNumberContent = false;
+                int innerContentStart = 1;
+                int innerContentEnd = len - 1;
+
+                if (innerContentStart == innerContentEnd) {
+                    continue;
+                }
+
+                boolean hasDot = false;
+                boolean isValid = true;
+                for (int k = innerContentStart; k < innerContentEnd; k++) {
+                    char c = content.charAt(k);
+                    if (c == NUMBER_DOT) {
+                        if (hasDot) {
+                            isValid = false;
                             break;
                         }
-                    }
-
-                    if (isValidNumberContent) {
-                        columnsWithSlices.add(column);
-                        columnsWithSlices.add(numberContentStart);
-                        columnsWithSlices.add(numberContentEnd);
-                    } else {
-                        return new IntArrayList();
-                    }
-                }
-            } else if (substringStart != substringEnd) {
-                boolean isValidUnquotedNumber = true;
-                for (int k = substringStart; k < substringEnd; k++) {
-                    if (!Character.isDigit(line.charAt(k))) {
-                        isValidUnquotedNumber = false;
+                        hasDot = true;
+                    } else if (!Character.isDigit(c)) {
+                        isValid = false;
                         break;
                     }
                 }
 
-                if (isValidUnquotedNumber) {
-                    columnsWithSlices.add(column);
-                    columnsWithSlices.add(substringStart);
-                    columnsWithSlices.add(substringEnd);
+                if (isValid) {
+                    columnsToReturn.add(column);
+                } else {
+                    return new IntArrayList();
+                }
+
+            } else {
+                boolean isValid = true;
+                for (int k = 0; k < len; k++) {
+                    if (!Character.isDigit(content.charAt(k))) {
+                        isValid = false;
+                        break;
+                    }
+                }
+
+                if (isValid) {
+                    columnsToReturn.add(column);
                 } else {
                     return new IntArrayList();
                 }
             }
-
-            column++;
-            pos = substringEnd + 1;
         }
 
-        return columnsWithSlices;
+        return columnsToReturn;
     }
-
 
     /**
      * Updates the index by associating each parsed number in a given line with its corresponding column and line IDs.
      *
-     * @param parsed the parsed line containing columns and number positions
      * @param lineId the ID of the line being indexed
      * @param index  the index structure mapping columns to numbers and their line IDs
      */
-    private void indexParsedLine(int lineId, IntList parsed, Object2ObjectMap<Slice, IntList> index) {
-        for (int i = 0; i < parsed.size() - 2; i++) {
-            int column = parsed.getInt(i);
-            int start = parsed.getInt(i + 1);
-            int end = parsed.getInt(i + 2);
-            IntList lineList = index.computeIfAbsent(new Slice(column, lineId, start, end), k -> new IntArrayList());
-            lineList.add(lineId);
-        }
+    private void indexParsedLine(int lineId, int column, int numberId, Object2ObjectMap<Slice, IntList> index) {
+        IntList lineList = index.computeIfAbsent(new Slice(column, numberId), k -> new IntArrayList());
+        lineList.add(lineId);
     }
 
     /**
@@ -152,15 +147,11 @@ public class PositionValueIndexer {
      */
     public class Slice {
         final int columnId;
-        final int lineId;
-        final int numberStart;
-        final int numberEnd;
+        final int numberId;
 
-        public Slice(int columnId, int lineId, int numberStart, int numberEnd) {
+        public Slice(int columnId, int numberId) {
             this.columnId = columnId;
-            this.lineId = lineId;
-            this.numberStart = numberStart;
-            this.numberEnd = numberEnd;
+            this.numberId = numberId;
         }
 
         @Override
@@ -174,33 +165,12 @@ public class PositionValueIndexer {
             if (columnId != other.columnId) {
                 return false;
             }
-            int len = numberEnd - numberStart;
-            if (len != other.numberEnd - other.numberStart) {
-                return false;
-            }
-            for (int i = 0; i < len; i++) {
-                if (fileReader.getLineById(lineId).charAt(numberStart + i) != fileReader.getLineById(other.lineId)
-                        .charAt(other.numberStart + i)) {
-                    return false;
-                }
-            }
-            return true;
+            return numberId == other.numberId;
         }
 
         @Override
         public int hashCode() {
-            String line = fileReader.getLineById(lineId);
-            int hash = 0x811c9dc5;
-            hash ^= columnId;
-            hash *= 0x01000193;
-            hash ^= numberStart;
-            hash *= 0x01000193;
-
-            for (int i = numberStart; i < numberEnd; i++) {
-                hash ^= line.charAt(i);
-                hash *= 0x01000193;
-            }
-            return hash;
+            return columnId * 31 + numberId;
         }
     }
 

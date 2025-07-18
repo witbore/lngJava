@@ -8,19 +8,19 @@ import java.io.File;
 import java.io.IOException;
 
 public class FileReader {
-    private final ObjectList<String> fileLines = new ObjectArrayList<>();
+    private final ObjectList<String[]> fileLines = new ObjectArrayList<>();
 
     public FileReader(File file) {
         try (BufferedReader br = new BufferedReader(new java.io.FileReader(file))) {
             for (String line = br.readLine(); line != null; line = br.readLine()) {
-                fileLines.add(line);
+                fileLines.add(line.split(";"));
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
-    public String getLineById(int id) {
+    public String[] getLineById(int id) {
         return fileLines.get(id);
     }
 
