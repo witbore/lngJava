@@ -21,7 +21,9 @@ public class IntUnionFindSet {
         int firstRoot = findSetRootByElement(first);
         int secondRoot = findSetRootByElement(second);
 
-        if (firstRoot == secondRoot) return;
+        if (firstRoot == secondRoot) {
+            return;
+        }
 
         int rank1 = ranks.get(firstRoot);
         int rank2 = ranks.get(secondRoot);

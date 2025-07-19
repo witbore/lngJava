@@ -4,6 +4,7 @@ import org.lng.internal.GroupProcessor;
 import org.lng.internal.GroupWriter;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 
 public class Main {
@@ -13,9 +14,9 @@ public class Main {
         }
         File file = new File(args[0]);
         GroupProcessor processor = new GroupProcessor(file);
-        GroupWriter writer = new GroupWriter(processor.getIndexer());
+        GroupWriter writer = new GroupWriter();
 
-        List<List<Integer>> multiElementGroups = processor.processFileLines();
+        List<List<Integer>> multiElementGroups = new ArrayList<>();
         writer.writeGroupsToFile("output.txt", multiElementGroups);
     }
 }
