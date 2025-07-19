@@ -15,7 +15,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 
-
+/**
+ * Indexes a text file by mapping 'column; number' pairs to the line numbers they occur on.
+ * Uses an intermediate temporary file to store the raw mapping.
+ */
 public class PositionValueIndexer {
     public static final String COLUMN_NUMBER_DELIMITER = ";";
     public static final String LINE_ID_DELIMITER = "\\|";
@@ -27,6 +30,12 @@ public class PositionValueIndexer {
     private final Path tempFile;
     private final Object2IntMap<String> cache = new Object2IntOpenHashMap<>();
 
+    /**
+     * Creates a new indexer for the given input file. Initialises a temporary file for index storage.
+     *
+     * @param filePath path to the input file to be indexed
+     * @throws RuntimeException if the temporary file cannot be created
+     */
     public PositionValueIndexer(Path filePath) {
         this.filePath = filePath;
         this.parser = new FileLineParser();
@@ -34,10 +43,17 @@ public class PositionValueIndexer {
             tempFile = Files.createTempFile(TEMP_FILE_PREFIX, TEMP_FILE_SUFFIX);
             tempFile.toFile().deleteOnExit();
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Unable to create temporary file", e);
         }
     }
 
+    /**
+     * Parses the input file and writes intermediate index data to a temporary file.
+     * Each non-empty line is parsed into 'column ; number | line index' mapping.
+     *
+     * @return total number of lines processed in the file.
+     * @throws RuntimeException on I/O failure or malformed data
+     */
     public int buildIndex() {
         int lineNumber = 0;
         try (var reader = Files.newBufferedReader(filePath, CHARSET);
@@ -63,11 +79,19 @@ public class PositionValueIndexer {
             }
             bw.flush();
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Unable to perform reading from given file and writing to the index file", e);
         }
         return lineNumber;
     }
 
+    /**
+     * Builds and returns an in-memory index from the intermediate file.
+     * To improve performance keys are represented as int IDs instead of the string 'column;number';
+     * The actual strings are stored in a cache.
+     *
+     * @return map from compacted 'column;value' keys to lists of line numbers
+     * @throws RuntimeException if index reading fails
+     */
     public Int2ObjectMap<IntList> getIndex() {
         Int2ObjectMap<IntList> index = new Int2ObjectOpenHashMap<>();
         try (var reader = Files.newBufferedReader(tempFile, CHARSET)) {
@@ -81,7 +105,7 @@ public class PositionValueIndexer {
                 index.computeIfAbsent(key, k -> new IntArrayList()).add(Integer.parseInt(parts[1]));
             }
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Unable to read index file", e);
         }
         return index;
     }

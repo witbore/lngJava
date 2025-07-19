@@ -5,6 +5,9 @@ import it.unimi.dsi.fastutil.ints.IntList;
 
 import java.io.File;
 
+/**
+ * Initialises the indexer and stores relevant information.
+ */
 public class InputFileReader {
     private final PositionValueIndexer indexer;
     private final File inputFile;

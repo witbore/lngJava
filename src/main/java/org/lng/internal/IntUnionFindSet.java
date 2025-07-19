@@ -3,6 +3,12 @@ package org.lng.internal;
 import it.unimi.dsi.fastutil.ints.Int2IntMap;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 
+
+/**
+ * Implementation of the disjoint set with union by rank.
+ * No generic abstraction was deemed necessary for the current use case,
+ * so this class is indented to work with integers.
+ */
 public class IntUnionFindSet {
     private final Int2IntMap roots;
     private final Int2IntMap ranks;

@@ -3,22 +3,27 @@ package org.lng.internal;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 
+
 final class FileLineParser {
     private static final String NUMBER_DELIMITER = ";";
     private static final char NUMBER_BOUNDARY = '"';
     private static final char NUMBER_DOT = '.';
 
     /**
-     * Parses lines for the correct numbers or returns `null`.
-     * Correct lines:
-     * `"AAA";"AAA"`
-     * `"";"AAA"
-     * `"AAA.A";"AAA.A"
-     * Incorrect ones:
-     * `"AAA"AAA"
-     * `AAA`
+     * Splits a CSV line at semicolons and validates numeric substrings.
+     * If any field is malformed, parsing stops and an empty map is returned.
+     * <p>
+     * Examples of valid lines:
+     * - "123";"456.78";
+     * - "123";"456";"789"
+     * <p>
+     * Examples of invalid lines (result in empty map):
+     * - "12.3.4"2"
+     * - "123"456
      *
-     * @return columns with non-empty Strings
+     * @param line the input line
+     * @return a map of column index to substring text for each valid numeric field,
+     * or an empty map if any field is invalid
      */
     Int2ObjectMap<String> parseLine(String line) {
         Int2ObjectMap<String> columnsToSubstrings = new Int2ObjectOpenHashMap<>();

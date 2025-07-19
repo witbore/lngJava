@@ -29,6 +29,5 @@ tasks.register("runWithDefaults", JavaExec) {
     dependsOn(shadowJar)
     classpath = sourceSets.main.runtimeClasspath
     mainClass.set(application.mainClass)
-    args = ['src/main/resources/lng-4.txt']
     jvmArgs = ['-Xmx1G']
 }
