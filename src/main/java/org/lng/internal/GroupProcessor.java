@@ -1,45 +1,33 @@
 package org.lng.internal;
 
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
-import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap;
-import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
-
-import java.io.File;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectList;
 
 public class GroupProcessor {
-    private final PositionValueIndexer indexer;
+
+    private final Int2ObjectMap<IntList> groups;
     private final int lineNumber;
 
-    public GroupProcessor(File file) {
-        indexer = new PositionValueIndexer(file);
-        lineNumber = indexer.buildIndex();
+    public GroupProcessor(int fileSize, Int2ObjectMap<IntList> index) {
+        lineNumber = fileSize;
+        groups = processFileLines(index);
     }
 
     /**
      * Processes the input file to find and group lines sharing common values in the same column positions.
-     *
-     * @return list of groups containing line IDs, each group has at least two lines,
-     * sorted by group size in descending order
      */
-    public List<List<Integer>> processFileLines() {
-
+    private Int2ObjectMap<IntList> processFileLines(Int2ObjectMap<IntList> index) {
         IntUnionFindSet unionFindSet = createUnionFindSet(lineNumber);
-
-        unionElements(new Object2ObjectArrayMap<>(), unionFindSet);
-        Map<Integer, List<Integer>> groups = buildGroups(unionFindSet);
-
-        return filterAndSortGroups(groups);
+        unionElements(index, unionFindSet);
+        return buildGroups(unionFindSet);
     }
 
     /**
      * Creates and initialises a Union-Find set structure with each line ID as a separate singleton set.
-     *
-     * @param size number of lines in the file
-     * @return initialized Union-Find set
      */
     private IntUnionFindSet createUnionFindSet(int size) {
         IntUnionFindSet set = new IntUnionFindSet();
@@ -51,11 +39,8 @@ public class GroupProcessor {
 
     /**
      * Merges sets of lines that share the same number at the same column position.
-     *
-     * @param positionValueToLines index mapping columns and numbers to line ID groups
-     * @param set                  Union-Find set to perform unions on
      */
-    private void unionElements(Object2ObjectMap<IntList, IntList> positionValueToLines, IntUnionFindSet set) {
+    private void unionElements(Int2ObjectMap<IntList> positionValueToLines, IntUnionFindSet set) {
         for (IntList group : positionValueToLines.values()) {
             if (group.size() < 2) {
                 continue;
@@ -64,34 +49,27 @@ public class GroupProcessor {
             for (int i = 1; i < group.size(); i++) {
                 set.unionSetsByElements(representative, group.getInt(i));
             }
-
         }
     }
 
     /**
      * Builds groups of line IDs by their Union-Find root element.
-     *
-     * @param set Union-Find set with unions performed
-     * @return map of root element to list of line IDs in that group
      */
-    private Map<Integer, List<Integer>> buildGroups(IntUnionFindSet set) {
-        Map<Integer, List<Integer>> groups = new HashMap<>();
+    private Int2ObjectMap<IntList> buildGroups(IntUnionFindSet set) {
+        Int2ObjectMap<IntList> groups = new Int2ObjectOpenHashMap<>();
         for (int id = 0; id < lineNumber; id++) {
             int root = set.findSetRootByElement(id);
-            groups.computeIfAbsent(root, k -> new ArrayList<>()).add(id);
+            groups.computeIfAbsent(root, k -> new IntArrayList()).add(id);
         }
         return groups;
     }
 
     /**
      * Filters out groups with less than two elements and sorts groups by their size in descending order.
-     *
-     * @param groups map of root elements to groups of line IDs
-     * @return sorted list of groups with at least two elements
      */
-    private List<List<Integer>> filterAndSortGroups(Map<Integer, List<Integer>> groups) {
-        List<List<Integer>> multiElementGroups = new ArrayList<>();
-        for (List<Integer> group : groups.values()) {
+    public ObjectList<IntList> getFilteredAndSortedGroups() {
+        ObjectList<IntList> multiElementGroups = new ObjectArrayList<>();
+        for (IntList group : groups.values()) {
             if (group.size() < 2) {
                 continue;
             }

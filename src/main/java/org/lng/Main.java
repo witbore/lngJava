@@ -1,11 +1,12 @@
 package org.lng;
 
+import it.unimi.dsi.fastutil.ints.IntList;
+import it.unimi.dsi.fastutil.objects.ObjectList;
 import org.lng.internal.GroupProcessor;
 import org.lng.internal.GroupWriter;
+import org.lng.internal.InputFileReader;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
 
 public class Main {
     public static void main(String[] args) {
@@ -13,10 +14,10 @@ public class Main {
             throw new IllegalArgumentException("No input file provided");
         }
         File file = new File(args[0]);
-        GroupProcessor processor = new GroupProcessor(file);
-        GroupWriter writer = new GroupWriter();
-
-        List<List<Integer>> multiElementGroups = new ArrayList<>();
+        InputFileReader reader = new InputFileReader(file);
+        GroupProcessor processor = new GroupProcessor(reader.getLineNumber(), reader.getIndex());
+        ObjectList<IntList> multiElementGroups = processor.getFilteredAndSortedGroups();
+        GroupWriter writer = new GroupWriter(reader.getInputFile(), reader.getLineNumber());
         writer.writeGroupsToFile("output.txt", multiElementGroups);
     }
 }
