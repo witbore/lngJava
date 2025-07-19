@@ -5,18 +5,23 @@ import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import org.lng.internal.PositionValueIndexer.Slice;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class GroupProcessor {
-    private final FileReader reader;
     private IntList incorrectIds;
+    private final PositionValueIndexer indexer;
 
-    public GroupProcessor(FileReader fileReader) {
-        reader = fileReader;
+    public GroupProcessor(File file) {
         incorrectIds = new IntArrayList();
+        indexer = new PositionValueIndexer(file);;
+    }
+
+    public PositionValueIndexer getIndexer() {
+        return indexer;
     }
 
     /**
@@ -26,10 +31,9 @@ public class GroupProcessor {
      * sorted by group size in descending order
      */
     public List<List<Integer>> processFileLines() {
-        PositionValueIndexer indexer = new PositionValueIndexer(reader);
         Object2ObjectMap<Slice, IntList> positionValueToLines = indexer.buildIndex();
         incorrectIds = indexer.getIncorrectIds();
-        IntUnionFindSet unionFindSet = createUnionFindSet(reader.getNumberOfLines());
+        IntUnionFindSet unionFindSet = createUnionFindSet(indexer.getNumberOfLines());
 
         unionElements(positionValueToLines, unionFindSet);
 
@@ -82,7 +86,7 @@ public class GroupProcessor {
      */
     private Map<Integer, List<Integer>> buildGroups(IntUnionFindSet set) {
         Map<Integer, List<Integer>> groups = new HashMap<>();
-        for (int id = 0; id < reader.getNumberOfLines(); id++) {
+        for (int id = 0; id < indexer.getNumberOfLines(); id++) {
             if (incorrectIds.contains(id)) {
                 continue;
             }

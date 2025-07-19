@@ -7,13 +7,11 @@ import java.util.Arrays;
 import java.util.List;
 
 public class GroupWriter {
-    private final FileReader reader;
-
-    public GroupWriter(FileReader fileReader) {
-        reader = fileReader;
+    PositionValueIndexer indexer;
+    public GroupWriter(PositionValueIndexer positionValueIndexer) {
+        indexer = positionValueIndexer;
     }
-
-    public void writeGroupsToFile(String filename, List<List<Integer>> sortedGroups) {
+    public void writeGroupsToFile(String filename, List<List<Integer>> sortedGroups){
         try (PrintWriter writer = new PrintWriter(filename, StandardCharsets.UTF_8)) {
             writer.println("Всего групп с более чем одним элементом: " + sortedGroups.size());
             writer.println();
@@ -21,7 +19,7 @@ public class GroupWriter {
             for (int i = 0; i < sortedGroups.size(); i++) {
                 writer.println("Группа " + (i + 1));
                 for (int lineId : sortedGroups.get(i)) {
-                    writer.println(Arrays.toString(reader.getLineById(lineId)));
+                    writer.println(Arrays.toString(indexer.getLine(lineId)));
                 }
                 writer.println();
             }

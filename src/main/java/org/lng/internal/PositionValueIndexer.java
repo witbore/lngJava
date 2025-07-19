@@ -2,22 +2,32 @@ package org.lng.internal;
 
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
-import it.unimi.dsi.fastutil.objects.Object2IntMap;
-import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
-import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.*;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.IOException;
 
 public class PositionValueIndexer {
 
     private static final char NUMBER_BOUNDARY = '"';
     private static final char NUMBER_DOT = '.';
+    private final File file;
     private final IntList incorrectIds = new IntArrayList();
-    private final FileReader fileReader;
+    private final ObjectList<String[]> fileLines = new ObjectArrayList<>();
     private final Object2IntMap<String> lineIdsCache = new Object2IntOpenHashMap<>();
     private int lastLineId = 0;
 
-    public PositionValueIndexer(FileReader reader) {
-        fileReader = reader;
+    public PositionValueIndexer(File file) {
+        this.file = file;
+    }
+
+    public int getNumberOfLines(){
+        return fileLines.size();
+    }
+
+    public String[] getLine(int lineId){
+        return fileLines.get(lineId);
     }
 
     /**
@@ -38,20 +48,28 @@ public class PositionValueIndexer {
      */
     public Object2ObjectMap<Slice, IntList> buildIndex() {
         Object2ObjectMap<Slice, IntList> columnToNumbersWithLineIds = new Object2ObjectOpenHashMap<>();
-        for (int id = 0; id < fileReader.getNumberOfLines(); id++) {
-            IntList parsed = parseLine(id);
-            if (!parsed.isEmpty()) {
-                for (int column : parsed) {
-                    lineIdsCache.computeIfAbsent(fileReader.getLineById(id)[column], v -> lastLineId++);
-                    indexParsedLine(id,
-                                    column,
-                                    lineIdsCache.getInt(fileReader.getLineById(id)[column]),
-                                    columnToNumbersWithLineIds);
+        try (BufferedReader br = new BufferedReader(new java.io.FileReader(file))) {
+            for (String line = br.readLine(); line != null; line = br.readLine()) {
+                String[] substrings = line.split(";");
+                IntList parsed = parseLine(substrings);
+                if (!parsed.isEmpty()) {
+                    for (int column : parsed) {
+                        lineIdsCache.computeIfAbsent(substrings[column], v -> lastLineId++);
+                        indexParsedLine(fileLines.size(),
+                                        column,
+                                        lineIdsCache.getInt(substrings[column]),
+                                        columnToNumbersWithLineIds);
+                    }
+                } else {
+                    incorrectIds.add(fileLines.size());
                 }
-            } else {
-                incorrectIds.add(id);
+                fileLines.add(substrings);
             }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
+
+
         return columnToNumbersWithLineIds;
     }
 
@@ -67,8 +85,7 @@ public class PositionValueIndexer {
      *
      * @return columns with parsed numbers in `Triple` format or `null` if the line is incorrect.
      */
-    private IntList parseLine(int lineId) {
-        String[] substrings = fileReader.getLineById(lineId);
+    private IntList parseLine(String[] substrings) {
         IntArrayList columnsToReturn = new IntArrayList();
 
         for (int column = 0; column < substrings.length; column++) {
