@@ -6,13 +6,13 @@ import it.unimi.dsi.fastutil.ints.IntList;
 import java.io.File;
 
 public class InputFileReader {
-    private final int lineNumber;
     private final PositionValueIndexer indexer;
     private final File inputFile;
+    private final int lineNumber;
 
     public InputFileReader(File file) {
         inputFile = file;
-        indexer = new PositionValueIndexer(file);
+        indexer = new PositionValueIndexer(file.toPath());
         lineNumber = indexer.buildIndex();
     }
 

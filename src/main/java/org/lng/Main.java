@@ -7,6 +7,8 @@ import org.lng.internal.GroupWriter;
 import org.lng.internal.InputFileReader;
 
 import java.io.File;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 public class Main {
     public static void main(String[] args) {
@@ -17,7 +19,9 @@ public class Main {
         InputFileReader reader = new InputFileReader(file);
         GroupProcessor processor = new GroupProcessor(reader.getLineNumber(), reader.getIndex());
         ObjectList<IntList> multiElementGroups = processor.getFilteredAndSortedGroups();
-        GroupWriter writer = new GroupWriter(reader.getInputFile(), reader.getLineNumber());
-        writer.writeGroupsToFile("output.txt", multiElementGroups);
+        Path inputPath = reader.getInputFile().toPath();
+        GroupWriter writer = new GroupWriter(inputPath);
+        Path outputPath = Paths.get("output.txt");
+        writer.writeGroupsToFile(outputPath, multiElementGroups);
     }
 }

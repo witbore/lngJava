@@ -7,20 +7,32 @@ import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 
-import java.io.*;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+
 
 public class PositionValueIndexer {
-    private final File file;
+    public static final String COLUMN_NUMBER_DELIMITER = ";";
+    public static final String LINE_ID_DELIMITER = "\\|";
+    public static final String TEMP_FILE_PREFIX = "index_";
+    public static final String TEMP_FILE_SUFFIX = ".tmp";
+    public static final Charset CHARSET = StandardCharsets.ISO_8859_1;
+    private final Path filePath;
     private final FileLineParser parser;
-    private final File tempFile;
+    private final Path tempFile;
     private final Object2IntMap<String> cache = new Object2IntOpenHashMap<>();
 
-    public PositionValueIndexer(File file) {
-        this.file = file;
+    public PositionValueIndexer(Path filePath) {
+        this.filePath = filePath;
         this.parser = new FileLineParser();
         try {
-            tempFile = File.createTempFile("index_", ".tmp");
-            tempFile.deleteOnExit();
+            tempFile = Files.createTempFile(TEMP_FILE_PREFIX, TEMP_FILE_SUFFIX);
+            tempFile.toFile().deleteOnExit();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -28,42 +40,49 @@ public class PositionValueIndexer {
 
     public int buildIndex() {
         int lineNumber = 0;
-        try (RandomAccessFile raf = new RandomAccessFile(file, "r");
-             BufferedWriter bw = new BufferedWriter(new FileWriter(tempFile))) {
+        try (var reader = Files.newBufferedReader(filePath, CHARSET);
+             BufferedWriter bw = Files.newBufferedWriter(tempFile,
+                                                         CHARSET,
+                                                         StandardOpenOption.WRITE,
+                                                         StandardOpenOption.TRUNCATE_EXISTING)) {
 
             String line;
-            while ((line = raf.readLine()) != null) {
-                Int2ObjectMap<String> parsedNumbers = parser.parseLine(line);
-                for (var entity : parsedNumbers.int2ObjectEntrySet()) {
-                    bw.write(entity.getIntKey() + ";" + entity.getValue() + "|" + lineNumber + "\n");
+            while ((line = reader.readLine()) != null) {
+                Int2ObjectMap<String> parsed = parser.parseLine(line);
+                if (!parsed.isEmpty()) {
+                    for (var entry : parsed.int2ObjectEntrySet()) {
+                        bw.write(entry.getIntKey());
+                        bw.write(COLUMN_NUMBER_DELIMITER);
+                        bw.write(entry.getValue());
+                        bw.write(LINE_ID_DELIMITER);
+                        bw.write(Integer.toString(lineNumber));
+                        bw.newLine();
+                    }
                 }
                 lineNumber++;
             }
+            bw.flush();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
         return lineNumber;
     }
 
-
     public Int2ObjectMap<IntList> getIndex() {
         Int2ObjectMap<IntList> index = new Int2ObjectOpenHashMap<>();
-        try (BufferedReader br = new BufferedReader(new FileReader(tempFile))) {
+        try (var reader = Files.newBufferedReader(tempFile, CHARSET)) {
             String line;
-            while ((line = br.readLine()) != null) {
-                String[] parts = line.split("\\|");
+            while ((line = reader.readLine()) != null) {
+                String[] parts = line.split(LINE_ID_DELIMITER);
                 if (parts.length != 2) {
                     continue;
                 }
-                int key = cache.computeIfAbsent(parts[0], p -> cache.size());
-                int lineId = Integer.parseInt(parts[1]);
-
-                index.computeIfAbsent(key, k -> new IntArrayList()).add(lineId);
+                int key = cache.computeIfAbsent(parts[0], k -> cache.size());
+                index.computeIfAbsent(key, k -> new IntArrayList()).add(Integer.parseInt(parts[1]));
             }
         } catch (IOException e) {
-            throw new UncheckedIOException(e);
+            throw new RuntimeException(e);
         }
         return index;
     }
-
 }
