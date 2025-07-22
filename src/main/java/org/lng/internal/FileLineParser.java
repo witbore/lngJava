@@ -32,15 +32,16 @@ final class FileLineParser {
             String content = substrings[column];
             int len = content.length();
 
+            // ';;' are valid lines
             if (len == 0) {
                 continue;
             }
 
             if (len >= 2 && content.charAt(0) == NUMBER_BOUNDARY && content.charAt(len - 1) == NUMBER_BOUNDARY) {
-
                 int innerContentStart = 1;
                 int innerContentEnd = len - 1;
 
+                // String should be non-empty
                 if (innerContentStart == innerContentEnd) {
                     continue;
                 }
@@ -49,13 +50,20 @@ final class FileLineParser {
                 boolean isValid = true;
                 for (int k = innerContentStart; k < innerContentEnd; k++) {
                     char c = content.charAt(k);
-                    if (c == NUMBER_DOT) {
+
+                    if(c == NUMBER_BOUNDARY){
+                        // Numbers like "123"456" are invalid
+                        isValid = false;
+                        break;
+                    } else if (c == NUMBER_DOT) {
+                        // Decimal numbers are valid: "123.567"
                         if (hasDot) {
                             isValid = false;
                             break;
                         }
                         hasDot = true;
                     } else if (!Character.isDigit(c)) {
+                        // Other symbols like ',' are prohibited
                         isValid = false;
                         break;
                     }
@@ -66,21 +74,9 @@ final class FileLineParser {
                 } else {
                     return new Int2ObjectOpenHashMap<>();
                 }
-
             } else {
-                boolean isValid = true;
-                for (int k = 0; k < len; k++) {
-                    if (!Character.isDigit(content.charAt(k))) {
-                        isValid = false;
-                        break;
-                    }
-                }
-
-                if (isValid) {
-                    columnsToSubstrings.put(column, content);
-                } else {
-                    return new Int2ObjectOpenHashMap<>();
-                }
+                // Lines like ;123; and ;"; are prohibited
+                return new Int2ObjectOpenHashMap<>();
             }
         }
 
