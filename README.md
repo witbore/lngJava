@@ -1,6 +1,6 @@
 # README
 ## Ответ
-![img.png](docs/images/img.png)
+![img.png](docs/images/console.png)
 
 ## Запуск решения
 1. `./gradlew shadowJar`
