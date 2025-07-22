@@ -80,10 +80,19 @@ public class LineGroupAggregator {
      * @return map of set representative indexes to the line IDs.
      */
     private Int2ObjectMap<IntList> buildGroupsByRoot(IntUnionFindSet set) {
+        int[] rootCounts = new int[numberOfLines];
+        for (int id = 0; id < numberOfLines; id++) {
+            int root = set.findSetRootByElement(id);
+            rootCounts[root]++;
+        }
+
         Int2ObjectMap<IntList> groups = new Int2ObjectOpenHashMap<>();
         for (int id = 0; id < numberOfLines; id++) {
             int root = set.findSetRootByElement(id);
-            groups.computeIfAbsent(root, k -> new IntArrayList()).add(id);
+            if (rootCounts[root] < 2){
+                continue;
+            }
+            groups.computeIfAbsent(root, k -> new IntArrayList(rootCounts[root])).add(id);
         }
         return groups;
     }
