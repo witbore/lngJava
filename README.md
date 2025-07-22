@@ -6,6 +6,7 @@
 1. `./gradlew shadowJar`
 2. `java -jar build/libs/solution.jar src/main/resources/lng-4.txt -Xmx1G`
 3. `java -jar build/libs/solution.jar src/main/resources/lng-big.csv -Xmx1G`
+4. `java -jar build/libs/solution.jar src/main/resources/lng.csv -Xmx1G`
 
 ## Алгоритм работы
 Задача: [lng-java.md](docs/lng-java.md)
