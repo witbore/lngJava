@@ -4,6 +4,7 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 
@@ -55,6 +56,7 @@ public class PositionValueIndexer {
      * @throws RuntimeException on I/O failure or malformed data
      */
     public int buildIndex() {
+        final LongOpenHashSet lineHashes = new LongOpenHashSet();
         int lineNumber = 0;
         try (var reader = Files.newBufferedReader(filePath, CHARSET);
              BufferedWriter bw = Files.newBufferedWriter(tempFile,
@@ -64,6 +66,11 @@ public class PositionValueIndexer {
 
             String line;
             while ((line = reader.readLine()) != null) {
+                if(lineHashes.contains(line.hashCode())) {
+                    lineNumber++;
+                    continue;
+                }
+                lineHashes.add(line.hashCode());
                 Int2ObjectMap<String> parsed = parser.parseLine(line);
                 if (!parsed.isEmpty()) {
                     for (var entry : parsed.int2ObjectEntrySet()) {
